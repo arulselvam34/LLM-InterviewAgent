@@ -2,7 +2,7 @@ import streamlit as st
 import json
 from datetime import datetime
 import os
-from groq import Groq
+import requests
 import time
 
 st.set_page_config(page_title="LLM Interview Agent", page_icon="🤖", layout="wide")
@@ -13,26 +13,38 @@ st.markdown("AI-powered interview simulation system - v2.0")
 # Get API key
 def get_groq_api_key():
     try:
-        key = st.secrets["GROQ_API_KEY"]
-        st.write(f"Using API key from secrets: {key[:10]}...")
-        return key
-    except:
-        key = os.getenv("GROQ_API_KEY")
-        if key:
-            st.write(f"Using API key from env: {key[:10]}...")
-        else:
-            st.write("No API key found")
-        return key
+        if "GROQ_API_KEY" in st.secrets:
+            return st.secrets["GROQ_API_KEY"]
+    except Exception:
+        pass
+    return os.getenv("GROQ_API_KEY")
 
-# Initialize Groq client
-def get_groq_client():
+# Make API call to Groq
+def call_groq_api(messages, model="llama-3.1-8b-instant", max_tokens=300):
     api_key = get_groq_api_key()
     if not api_key:
         return None
+    
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens
+    }
+    
     try:
-        return Groq(api_key=api_key)
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            st.error(f"API Error: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        st.error(f"Failed to initialize Groq client. Please check your API key.")
+        st.error(f"Request failed: {str(e)}")
         return None
 
 # Sidebar configuration
@@ -53,67 +65,48 @@ selected_job = st.sidebar.selectbox("Select Job Position", job_titles)
 available_models = [
     "llama-3.1-8b-instant",
     "llama3-8b-8192",
-    "gemma2-9b-it",
-    "mixtral-8x7b-32768"
+    "gemma2-9b-it"
 ]
 
 models = {}
-for i in range(1, 5):
+for i in range(1, 4):  # Reduced to 3 candidates since we only have 3 working models
     models[f"candidate{i}"] = st.sidebar.selectbox(
         f"Candidate {i} Model", 
         available_models, 
-        index=min(i-1, len(available_models)-1),
+        index=i-1,
         key=f"model_{i}"
     )
 
 num_questions = st.sidebar.slider("Number of Questions", 1, 5, 3)
 
 # Interview functions
-def generate_question(job_title, question_num, history, client):
+def generate_question(job_title, question_num, history):
     prompt = f"""You are a co-founder interviewing for a {job_title} position. 
     Generate question #{question_num} based on the interview history: {history}
     Make it relevant and professional. Return only the question."""
     
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=200
-        )
-        return response.choices[0].message.content.strip()
-    except:
-        return f"Tell me about your experience relevant to {job_title}?"
+    messages = [{"role": "user", "content": prompt}]
+    response = call_groq_api(messages, max_tokens=200)
+    return response.strip() if response else f"Tell me about your experience relevant to {job_title}?"
 
-def generate_answer(question, job_title, model, client):
+def generate_answer(question, job_title, model):
     prompt = f"""You are a fresh graduate applying for {job_title}. 
     Answer this interview question professionally: {question}
     Show enthusiasm and potential despite limited experience."""
     
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=300
-        )
-        return response.choices[0].message.content.strip()
-    except:
-        return "I have academic experience and strong motivation to learn."
+    messages = [{"role": "user", "content": prompt}]
+    response = call_groq_api(messages, model=model, max_tokens=300)
+    return response.strip() if response else "I have academic experience and strong motivation to learn."
 
-def evaluate_candidate(job_title, history, client):
+def evaluate_candidate(job_title, history):
     prompt = f"""As a hiring manager, evaluate this {job_title} candidate based on their interview:
     {history}
     
     Provide: Decision (Pass/Fail), Score (0-100), Key Strengths, Areas for Improvement"""
     
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=400
-        )
-        return response.choices[0].message.content.strip()
-    except:
-        return "Evaluation completed - candidate shows potential for growth."
+    messages = [{"role": "user", "content": prompt}]
+    response = call_groq_api(messages, max_tokens=400)
+    return response.strip() if response else "Evaluation completed - candidate shows potential for growth."
 
 # Main interface
 col1, col2 = st.columns([2, 1])
@@ -122,8 +115,7 @@ with col1:
     st.header(f"Interview Simulation: {selected_job}")
     
     if st.button("Start Interview", type="primary"):
-        client = get_groq_client()
-        if not client:
+        if not get_groq_api_key():
             st.error("⚠️ Please configure your GROQ API key to use this application.")
             st.stop()
         results = {}
@@ -137,13 +129,14 @@ with col1:
             # Conduct interview
             history = []
             for q_num in range(1, num_questions + 1):
-                question = generate_question(selected_job, q_num, history, client)
-                time.sleep(1)
-                answer = generate_answer(question, selected_job, model, client)
+                question = generate_question(selected_job, q_num, history)
+                time.sleep(2)  # Increase delay to avoid rate limits
+                answer = generate_answer(question, selected_job, model)
+                time.sleep(1)  # Add delay between API calls
                 history.append({"question": question, "answer": answer})
             
             # Evaluate
-            evaluation = evaluate_candidate(selected_job, history, client)
+            evaluation = evaluate_candidate(selected_job, history)
             
             results[candidate_id] = {
                 "model": model,

@@ -7,23 +7,25 @@ An AI-powered interview simulation system that evaluates how different Large Lan
 This innovative system simulates realistic job interviews using AI agents, providing insights into how different language models handle professional conversations, problem-solving, and behavioral questions.
 
 ### Key Features
-- 🤖 **Multi-Model Comparison**: Test 4 different LLM models simultaneously
+- 🤖 **Multi-Model Comparison**: Test 3 different LLM models simultaneously
 - 💼 **7 Job Positions**: From Marketing to AI Engineering roles
 - 📊 **Comprehensive Evaluation**: Automated scoring and detailed feedback
 - 🔄 **Dynamic Interviews**: Questions adapt based on candidate responses
-- 📈 **Comparative Analysis**: Side-by-side model performance comparison
+- 📈 **Real-time Results**: Live interview progress and instant results
 - 💾 **Structured Results**: JSON output for further analysis
+- 🌐 **Web Interface**: Easy-to-use Streamlit dashboard
+- ☁️ **Cloud Deployment**: Access from anywhere via Streamlit Cloud
 
 ## 🛠️ Technology Stack
 
-- **Framework**: CrewAI (Multi-agent orchestration)
+- **Frontend**: Streamlit (Web interface)
 - **LLM Provider**: Groq (High-speed inference)
 - **Language**: Python 3.8+
 - **Models Used**:
-  - `groq/llama-3.1-8b-instant` (Primary)
-  - `groq/llama3-8b-8192` (Alternative)
-  - `groq/gemma2-9b-it` (Latest Gemma)
-  - Duplicate model for comparison testing
+  - `llama-3.1-8b-instant` (Primary)
+  - `llama3-8b-8192` (Alternative)
+  - `gemma2-9b-it` (Latest Gemma)
+- **Deployment**: Streamlit Cloud
 
 ## 🚀 Quick Start
 
@@ -31,11 +33,11 @@ This innovative system simulates realistic job interviews using AI agents, provi
 - Python 3.8 or higher
 - Groq API key (free at [console.groq.com](https://console.groq.com/keys))
 
-### Installation
+### Local Installation
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/LLM-InterviewAgent.git
+git clone https://github.com/arulselvam34/LLM-InterviewAgent.git
 cd LLM-InterviewAgent
 ```
 
@@ -52,31 +54,26 @@ pip install -r requirements.txt
 
 4. **Set up environment variables**
 ```bash
-cp .env.example .env
-# Edit .env and add your GROQ_API_KEY
+# Create .env file and add your GROQ_API_KEY
+echo 'GROQ_API_KEY="your_api_key_here"' > .env
 ```
+
+5. **Run the Streamlit app**
+```bash
+streamlit run streamlit_app.py
+```
+
+### Online Demo
+
+🌐 **Try it live:** [LLM Interview Agent on Streamlit Cloud](https://llm-interviewagent.streamlit.app/)
 
 ### Usage
 
-1. **Run the simulation**
-```bash
-python main.py
-```
-
-2. **Select job position** (1-7)
-```
-1. Marketing Associate
-2. Business Development Representative
-3. Product Manager
-4. Customer Success Representative
-5. Data Analyst
-6. Content Creator
-7. AI Engineer
-```
-
-3. **Choose number of questions** (default: 3)
-
-4. **Watch the AI interviews unfold!**
+1. **Select job position** from 7 available roles
+2. **Choose AI models** for each candidate (3 candidates available)
+3. **Set number of questions** (1-5)
+4. **Click "Start Interview"** and watch AI candidates get interviewed!
+5. **View detailed results** with scores and evaluations
 
 ## 📋 Available Job Positions
 
@@ -119,29 +116,26 @@ graph LR
 
 ## 📊 Sample Output
 
-### Interview Summary
-```
-candidate1: groq/llama-3.1-8b-instant - COMPLETED
-candidate2: groq/llama3-8b-8192 - COMPLETED
-candidate3: groq/gemma2-9b-it - COMPLETED
-candidate4: groq/llama-3.1-8b-instant - COMPLETED
-```
+### Interview Results Dashboard
+- **Real-time Progress**: Watch interviews happen live
+- **Expandable Results**: Click to view detailed Q&A for each candidate
+- **Scoring System**: 0-100 scores with Pass/Fail decisions
+- **Model Comparison**: Side-by-side performance analysis
 
-### Results Structure
-```json
-{
-  "job_title": "AI Engineer",
-  "interview_date": "2024-12-15 14:30:22",
-  "candidates": {
-    "candidate1": {
-      "model": "groq/llama-3.1-8b-instant",
-      "score": 85,
-      "evaluation": "Strong technical knowledge...",
-      "interview_history": [...]
-    }
-  },
-  "comparative_analysis": "Detailed comparison..."
-}
+### Sample Evaluation
+```
+Candidate 1 (llama-3.1-8b-instant): PASS - Score 92/100
+✅ Strong communication skills
+✅ Relevant experience examples
+✅ Professional responses
+
+Candidate 2 (llama3-8b-8192): PASS - Score 85/100
+✅ Good technical knowledge
+⚠️ Could improve specificity
+
+Candidate 3 (gemma2-9b-it): PASS - Shows potential
+✅ Enthusiastic responses
+✅ Quick learner attitude
 ```
 
 ## 🎯 Use Cases
@@ -164,40 +158,37 @@ candidate4: groq/llama-3.1-8b-instant - COMPLETED
 ## 🔧 Configuration
 
 ### Customizing Models
-Edit `interview_simulation.py`:
-```python
-self.models = {
-    "candidate1": "your-preferred-model",
-    "candidate2": "another-model",
-    # Add more models
-}
-```
+Models are easily selectable in the Streamlit interface:
+- **llama-3.1-8b-instant**: Fast and reliable
+- **llama3-8b-8192**: Detailed responses
+- **gemma2-9b-it**: Creative and conversational
 
-### Adding Job Positions
-Modify `main.py`:
-```python
-job_titles = [
-    "Your Custom Position",
-    # Add more positions
-]
-```
+### Available Job Positions
+1. Marketing Associate
+2. Business Development Representative
+3. Product Manager
+4. Customer Success Representative
+5. Data Analyst
+6. Content Creator
+7. AI Engineer
 
-### Adjusting Questions
-Update `tasks.py` to modify question generation logic.
+### Interview Settings
+- **Questions per candidate**: 1-5 (adjustable slider)
+- **Real-time progress**: Live updates during interviews
+- **Automatic saving**: Results saved as timestamped JSON files
 
 ## 📈 Performance Insights
 
-Based on testing, here's what we've observed:
-
 ### Model Characteristics
-- **Llama-3.1-8b**: Balanced, professional responses
-- **Llama3-8b-8192**: More detailed, technical answers
-- **Gemma2-9b**: Creative, conversational style
+- **llama-3.1-8b-instant**: Balanced, professional responses with high scores
+- **llama3-8b-8192**: Detailed, analytical answers with good structure
+- **gemma2-9b-it**: Creative, conversational style with enthusiasm
 
 ### Success Factors
-- Clear, specific questions get better responses
-- Follow-up questions reveal deeper insights
-- Consistent evaluation criteria ensure fair comparison
+- **Dynamic questioning**: Each question builds on previous responses
+- **Consistent evaluation**: Fair scoring across all candidates
+- **Real-time feedback**: Immediate results and detailed analysis
+- **Rate limiting**: Built-in delays prevent API overload
 
 ## 🤝 Contributing
 
@@ -219,19 +210,23 @@ We welcome contributions! Areas for improvement:
 
 ### Common Issues
 
-**"Unknown error occurred"**
-- Check your GROQ_API_KEY in .env file
-- Verify internet connection
-- Try reducing number of questions
+**"API key not found"**
+- Add your GROQ_API_KEY to Streamlit secrets (for cloud)
+- Or create `.env` file with your API key (for local)
 
-**Models not responding**
-- Some models may have rate limits
-- Wait a few minutes and retry
-- Check Groq service status
+**"Rate limit exceeded"**
+- Wait a few minutes before running again
+- Reduce number of questions
+- Consider upgrading your Groq plan
 
-**Encoding errors on Windows**
-- The system automatically handles Windows encoding
-- Ensure Python 3.8+ is installed
+**"Model decommissioned"**
+- App automatically uses only supported models
+- Check [Groq docs](https://console.groq.com/docs/deprecations) for updates
+
+**Local setup issues**
+- Ensure you're using `streamlit run streamlit_app.py`
+- Not `python streamlit_app.py`
+- Install requirements: `pip install -r requirements.txt`
 
 ## 📄 License
 
@@ -245,9 +240,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-- **GitHub**: [Your GitHub Profile]
-- **LinkedIn**: [Your LinkedIn Profile]
-- **Email**: [Your Email]
+- **GitHub**: [arulselvam34](https://github.com/arulselvam34)
+- **Live Demo**: [Streamlit Cloud App](https://llm-interviewagent.streamlit.app/)
+- **Issues**: [Report bugs here](https://github.com/arulselvam34/LLM-InterviewAgent/issues)
 
 ---
 
