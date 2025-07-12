@@ -8,7 +8,7 @@ import time
 st.set_page_config(page_title="LLM Interview Agent", page_icon="🤖", layout="wide")
 
 st.title("🤖 LLM Interview Agent")
-st.markdown("AI-powered interview simulation system")
+st.markdown("AI-powered interview simulation system - v2.0")
 
 # Get API key
 def get_groq_api_key():
