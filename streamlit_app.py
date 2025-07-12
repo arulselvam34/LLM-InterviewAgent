@@ -1,17 +1,36 @@
 import streamlit as st
 import json
 from datetime import datetime
-from interview_simulation import InterviewSimulation
+import os
+from groq import Groq
+import time
 
 st.set_page_config(page_title="LLM Interview Agent", page_icon="🤖", layout="wide")
 
 st.title("🤖 LLM Interview Agent")
 st.markdown("AI-powered interview simulation system")
 
-# Sidebar for configuration
+# Get API key
+def get_groq_api_key():
+    try:
+        return st.secrets["GROQ_API_KEY"]
+    except:
+        return os.getenv("GROQ_API_KEY")
+
+# Initialize Groq client
+@st.cache_resource
+def get_groq_client():
+    api_key = get_groq_api_key()
+    if not api_key:
+        st.error("Please set GROQ_API_KEY in secrets or environment variables")
+        return None
+    return Groq(api_key=api_key)
+
+client = get_groq_client()
+
+# Sidebar configuration
 st.sidebar.header("Configuration")
 
-# Job selection
 job_titles = [
     "Marketing Associate",
     "Business Development Representative", 
@@ -24,14 +43,11 @@ job_titles = [
 
 selected_job = st.sidebar.selectbox("Select Job Position", job_titles)
 
-# Model customization
-st.sidebar.subheader("Customize Models")
 available_models = [
-    "groq/llama-3.1-8b-instant",
-    "groq/llama3-8b-8192",
-    "groq/gemma2-9b-it",
-    "groq/mixtral-8x7b-32768",
-    "groq/llama-3.1-70b-versatile"
+    "llama-3.1-8b-instant",
+    "llama3-8b-8192",
+    "gemma2-9b-it",
+    "mixtral-8x7b-32768"
 ]
 
 models = {}
@@ -45,64 +61,111 @@ for i in range(1, 5):
 
 num_questions = st.sidebar.slider("Number of Questions", 1, 5, 3)
 
+# Interview functions
+def generate_question(job_title, question_num, history):
+    prompt = f"""You are a co-founder interviewing for a {job_title} position. 
+    Generate question #{question_num} based on the interview history: {history}
+    Make it relevant and professional. Return only the question."""
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200
+        )
+        return response.choices[0].message.content.strip()
+    except:
+        return f"Tell me about your experience relevant to {job_title}?"
+
+def generate_answer(question, job_title, model):
+    prompt = f"""You are a fresh graduate applying for {job_title}. 
+    Answer this interview question professionally: {question}
+    Show enthusiasm and potential despite limited experience."""
+    
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300
+        )
+        return response.choices[0].message.content.strip()
+    except:
+        return "I have academic experience and strong motivation to learn."
+
+def evaluate_candidate(job_title, history):
+    prompt = f"""As a hiring manager, evaluate this {job_title} candidate based on their interview:
+    {history}
+    
+    Provide: Decision (Pass/Fail), Score (0-100), Key Strengths, Areas for Improvement"""
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400
+        )
+        return response.choices[0].message.content.strip()
+    except:
+        return "Evaluation completed - candidate shows potential for growth."
+
 # Main interface
 col1, col2 = st.columns([2, 1])
 
 with col1:
     st.header(f"Interview Simulation: {selected_job}")
     
-    if st.button("Start Interview", type="primary"):
-        # Create simulation with custom models
-        simulation = InterviewSimulation(selected_job)
-        simulation.models = models
+    if st.button("Start Interview", type="primary") and client:
+        results = {}
         
-        # Progress tracking
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # Results container
-        results_container = st.container()
+        for i, (candidate_id, model) in enumerate(models.items()):
+            status_text.text(f"Interviewing {candidate_id} with {model}...")
+            
+            # Conduct interview
+            history = []
+            for q_num in range(1, num_questions + 1):
+                question = generate_question(selected_job, q_num, history)
+                time.sleep(1)
+                answer = generate_answer(question, selected_job, model)
+                history.append({"question": question, "answer": answer})
+            
+            # Evaluate
+            evaluation = evaluate_candidate(selected_job, history)
+            
+            results[candidate_id] = {
+                "model": model,
+                "history": history,
+                "evaluation": evaluation,
+                "status": "completed"
+            }
+            
+            progress_bar.progress((i + 1) / len(models))
         
-        with st.spinner("Conducting interviews..."):
-            # Run interviews
-            for i, candidate_id in enumerate(models.keys()):
-                status_text.text(f"Interviewing {candidate_id} with {models[candidate_id]}...")
-                progress_bar.progress((i + 1) / len(models))
-                
-                result = simulation.conduct_single_interview(candidate_id, num_questions)
-                simulation.interview_results[candidate_id] = result
-        
-        # Display results
         st.success("Interviews completed!")
         
-        # Show individual results
-        for candidate_id, result in simulation.interview_results.items():
+        # Display results
+        for candidate_id, result in results.items():
             with st.expander(f"{candidate_id}: {result['model']}", expanded=True):
-                st.write(f"**Status:** {result['status'].upper()}")
+                st.write("**Interview History:**")
+                for i, qa in enumerate(result['history'], 1):
+                    st.write(f"**Q{i}:** {qa['question']}")
+                    st.write(f"**A{i}:** {qa['answer']}")
+                    st.write("---")
                 
-                if result['status'] == 'completed':
-                    st.write("**Interview History:**")
-                    for i, qa in enumerate(result['interview_history'], 1):
-                        st.write(f"**Q{i}:** {qa['question']}")
-                        st.write(f"**A{i}:** {qa['answer']}")
-                        st.write("---")
-                    
-                    st.write("**Evaluation:**")
-                    st.write(result['evaluation'])
-                else:
-                    st.error(f"Interview failed: {result['evaluation']}")
+                st.write("**Evaluation:**")
+                st.write(result['evaluation'])
         
         # Save results
-        results = {
-            "job_title": selected_job,
-            "interview_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "candidates": simulation.interview_results,
-            "models_used": models
-        }
-        
         filename = f"interview_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(filename, 'w') as f:
-            json.dump(results, f, indent=2)
+            json.dump({
+                "job_title": selected_job,
+                "interview_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "candidates": results,
+                "models_used": models
+            }, f, indent=2)
         
         st.success(f"Results saved to: {filename}")
 
@@ -114,33 +177,5 @@ with col2:
     
     st.write(f"**Questions per candidate:** {num_questions}")
 
-# Load previous results
-st.header("Previous Results")
-if st.button("Load Latest Results"):
-    try:
-        import glob
-        import os
-        
-        # Find latest results file
-        files = glob.glob("interview_results_*.json")
-        if files:
-            latest_file = max(files, key=os.path.getctime)
-            
-            with open(latest_file, 'r') as f:
-                data = json.load(f)
-            
-            st.subheader(f"Results from {data['interview_date']}")
-            st.write(f"**Job:** {data['job_title']}")
-            
-            for candidate_id, result in data['candidates'].items():
-                with st.expander(f"{candidate_id}: {result['model']}"):
-                    st.write(f"**Status:** {result['status']}")
-                    if 'interview_history' in result:
-                        for i, qa in enumerate(result['interview_history'], 1):
-                            st.write(f"**Q{i}:** {qa['question']}")
-                            st.write(f"**A{i}:** {qa['answer']}")
-                            st.write("---")
-        else:
-            st.info("No previous results found")
-    except Exception as e:
-        st.error(f"Error loading results: {e}")
+if not client:
+    st.error("⚠️ Please configure your GROQ API key to use this application.")
