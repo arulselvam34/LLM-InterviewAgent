@@ -18,15 +18,15 @@ def get_groq_api_key():
         return os.getenv("GROQ_API_KEY")
 
 # Initialize Groq client
-@st.cache_resource
 def get_groq_client():
     api_key = get_groq_api_key()
     if not api_key:
-        st.error("Please set GROQ_API_KEY in secrets or environment variables")
         return None
-    return Groq(api_key=api_key)
-
-client = get_groq_client()
+    try:
+        return Groq(api_key=api_key)
+    except Exception as e:
+        st.error(f"Failed to initialize Groq client: {str(e)}")
+        return None
 
 # Sidebar configuration
 st.sidebar.header("Configuration")
@@ -62,7 +62,7 @@ for i in range(1, 5):
 num_questions = st.sidebar.slider("Number of Questions", 1, 5, 3)
 
 # Interview functions
-def generate_question(job_title, question_num, history):
+def generate_question(job_title, question_num, history, client):
     prompt = f"""You are a co-founder interviewing for a {job_title} position. 
     Generate question #{question_num} based on the interview history: {history}
     Make it relevant and professional. Return only the question."""
@@ -77,7 +77,7 @@ def generate_question(job_title, question_num, history):
     except:
         return f"Tell me about your experience relevant to {job_title}?"
 
-def generate_answer(question, job_title, model):
+def generate_answer(question, job_title, model, client):
     prompt = f"""You are a fresh graduate applying for {job_title}. 
     Answer this interview question professionally: {question}
     Show enthusiasm and potential despite limited experience."""
@@ -92,7 +92,7 @@ def generate_answer(question, job_title, model):
     except:
         return "I have academic experience and strong motivation to learn."
 
-def evaluate_candidate(job_title, history):
+def evaluate_candidate(job_title, history, client):
     prompt = f"""As a hiring manager, evaluate this {job_title} candidate based on their interview:
     {history}
     
@@ -114,7 +114,11 @@ col1, col2 = st.columns([2, 1])
 with col1:
     st.header(f"Interview Simulation: {selected_job}")
     
-    if st.button("Start Interview", type="primary") and client:
+    if st.button("Start Interview", type="primary"):
+        client = get_groq_client()
+        if not client:
+            st.error("⚠️ Please configure your GROQ API key to use this application.")
+            st.stop()
         results = {}
         
         progress_bar = st.progress(0)
@@ -126,13 +130,13 @@ with col1:
             # Conduct interview
             history = []
             for q_num in range(1, num_questions + 1):
-                question = generate_question(selected_job, q_num, history)
+                question = generate_question(selected_job, q_num, history, client)
                 time.sleep(1)
-                answer = generate_answer(question, selected_job, model)
+                answer = generate_answer(question, selected_job, model, client)
                 history.append({"question": question, "answer": answer})
             
             # Evaluate
-            evaluation = evaluate_candidate(selected_job, history)
+            evaluation = evaluate_candidate(selected_job, history, client)
             
             results[candidate_id] = {
                 "model": model,
@@ -177,5 +181,6 @@ with col2:
     
     st.write(f"**Questions per candidate:** {num_questions}")
 
-if not client:
+# Check API key availability
+if not get_groq_api_key():
     st.error("⚠️ Please configure your GROQ API key to use this application.")
