@@ -25,7 +25,7 @@ def get_groq_client():
     try:
         return Groq(api_key=api_key)
     except Exception as e:
-        st.error(f"Failed to initialize Groq client: {str(e)}")
+        st.error(f"Failed to initialize Groq client. Please check your API key.")
         return None
 
 # Sidebar configuration
