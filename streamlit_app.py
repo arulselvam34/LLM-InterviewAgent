@@ -13,9 +13,16 @@ st.markdown("AI-powered interview simulation system - v2.0")
 # Get API key
 def get_groq_api_key():
     try:
-        return st.secrets["GROQ_API_KEY"]
+        key = st.secrets["GROQ_API_KEY"]
+        st.write(f"Using API key from secrets: {key[:10]}...")
+        return key
     except:
-        return os.getenv("GROQ_API_KEY")
+        key = os.getenv("GROQ_API_KEY")
+        if key:
+            st.write(f"Using API key from env: {key[:10]}...")
+        else:
+            st.write("No API key found")
+        return key
 
 # Initialize Groq client
 def get_groq_client():
